@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AWS async task queue (API Gateway -> SQS -> Lambda worker + DLQ)
+
+Resources:
+  HttpApiGateway:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins: ["*"]
+        AllowMethods: [POST, GET]
+        AllowHeaders: [content-type]
+      DefaultRouteSettings: 
+        ThrottlingRateLimit: 50
+        ThrottlingBurstLimit: 100
+
+  # 1. Dead Letter Queue
+  DLQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: 'dlq'
+
+  # 2. Main Queue with Redrive Policy pointing to DLQ
+  MainQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: 'main-queue'
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt DLQueue.Arn
+        maxReceiveCount: 3
+
+  # 3. DynamoDB Table for Job Status
+  JobsTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey:
+        Name: id
+        Type: String
+       
+  # 4. Producer Lambda (Handles POST /jobs and sends message to SQS)
+  JobsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: producer.handler
+      Runtime: nodejs24.x
+      CodeUri: ./src
+      Policies: 
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt MainQueue.QueueName
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref JobsTable 
+          QUEUE_URL: !Ref MainQueue
+      Events:
+        JobsCreateRoute:
+          Type: HttpApi
+          Properties:
+            Path: /jobs
+            Method: POST
+            ApiId: !Ref HttpApiGateway
+        JobsGetRoute:
+          Type: HttpApi
+          Properties:
+            Path: /jobs/{id}
+            Method: GET
+            ApiId: !Ref HttpApiGateway
+
+  # 5. Consumer/Worker Lambda (Triggered by SQS to process jobs)
+  WorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: consumer.handler
+      Runtime: nodejs24.x
+      CodeUri: ./src
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+        - SQSPollerPolicy:
+            QueueName: !GetAtt MainQueue.QueueName
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref JobsTable
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MainQueue.Arn
+            BatchSize: 1 
