@@ -30,7 +30,7 @@ exports.handler = async (event) => {
     const pathParameters = event.pathParameters; 
 
     try {
-        // POSTS handler
+        // POST handler
         if (method === "POST" && path === "/jobs") {
             const jobId = crypto.randomUUID();
 
@@ -60,6 +60,38 @@ exports.handler = async (event) => {
                 body: JSON.stringify({ jobId, status: "queued" })
             };
         }  
+
+        // GET handler
+        if(method === "GET" && pathParameters?.id) {
+            const jobId = pathParameters.id;
+
+            const result = await docClient.send(new GetCommand({
+                TableName: TABLE_NAME,
+                Key: {
+                    id: jobId
+                }
+            }))
+
+            if (!result.Item) {
+                return {
+                    statusCode: 404,
+                    headers: { 
+                        "Content-Type": "application/json" 
+                    },
+                    body: JSON.stringify({ 
+                        error: "Job not found" 
+                    })
+                };
+            }
+
+            return {
+                statusCode: 200,
+                headers: { 
+                    "Content-Type": "application/json" 
+                },
+                body: JSON.stringify(result.Item)
+            };
+        }
     } catch (error) {
         console.log(error)
     }    
