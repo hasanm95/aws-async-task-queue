@@ -88,3 +88,8 @@ Resources:
           Properties:
             Queue: !GetAtt MainQueue.Arn
             BatchSize: 1 
+             
+Outputs:
+  ApiUrl:
+    Description: "Deploved HTTP API Endpoint URL"
+    Value: !Sub "https://${HttpApiGateway}.execute-api.${AWS::Region}.amazonaws.com"

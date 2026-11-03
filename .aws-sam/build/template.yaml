@@ -1,0 +1,111 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AWS async task queue (API Gateway -> SQS -> Lambda worker + DLQ)
+Resources:
+  HttpApiGateway:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+        - '*'
+        AllowMethods:
+        - POST
+        - GET
+        AllowHeaders:
+        - content-type
+      DefaultRouteSettings:
+        ThrottlingRateLimit: 50
+        ThrottlingBurstLimit: 100
+  DLQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: dlq
+  MainQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: main-queue
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+          - DLQueue
+          - Arn
+        maxReceiveCount: 3
+  JobsTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey:
+        Name: id
+        Type: String
+  JobsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: producer.handler
+      Runtime: nodejs24.x
+      CodeUri: JobsFunction
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: JobsTable
+      - SQSSendMessagePolicy:
+          QueueName:
+            Fn::GetAtt:
+            - MainQueue
+            - QueueName
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: JobsTable
+          QUEUE_URL:
+            Ref: MainQueue
+      Events:
+        JobsCreateRoute:
+          Type: HttpApi
+          Properties:
+            Path: /jobs
+            Method: POST
+            ApiId:
+              Ref: HttpApiGateway
+        JobsGetRoute:
+          Type: HttpApi
+          Properties:
+            Path: /jobs/{id}
+            Method: GET
+            ApiId:
+              Ref: HttpApiGateway
+    Metadata:
+      SamResourceId: JobsFunction
+  WorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: consumer.handler
+      Runtime: nodejs24.x
+      CodeUri: WorkerFunction
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: JobsTable
+      - SQSPollerPolicy:
+          QueueName:
+            Fn::GetAtt:
+            - MainQueue
+            - QueueName
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: JobsTable
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue:
+              Fn::GetAtt:
+              - MainQueue
+              - Arn
+            BatchSize: 1
+    Metadata:
+      SamResourceId: WorkerFunction
+Outputs:
+  ApiUrl:
+    Description: Deploved HTTP API Endpoint URL
+    Value:
+      Fn::Sub: https://${HttpApiGateway}.execute-api.${AWS::Region}.amazonaws.com
