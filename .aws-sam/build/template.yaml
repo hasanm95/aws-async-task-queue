@@ -80,6 +80,7 @@ Resources:
       Handler: consumer.handler
       Runtime: nodejs24.x
       CodeUri: WorkerFunction
+      Timeout: 10
       Policies:
       - DynamoDBCrudPolicy:
           TableName:

@@ -74,6 +74,7 @@ Resources:
       Handler: consumer.handler
       Runtime: nodejs24.x
       CodeUri: ./src
+      Timeout: 10
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref JobsTable

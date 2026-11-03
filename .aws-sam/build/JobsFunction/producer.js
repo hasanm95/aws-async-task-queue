@@ -3,9 +3,24 @@ const { SQSClient, SendMessageCommand } = require("@aws-sdk/client-sqs");
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
 const { DynamoDBDocumentClient, PutCommand, GetCommand } = require("@aws-sdk/lib-dynamodb");
 
-const sqsClient = new SQSClient({});
-const ddbClient = new DynamoDBClient({});
+const isSamLocal = process.env.AWS_SAM_LOCAL === "true";
+const isLocalstackEnv = process.env.LOCALSTACK_HOSTNAME;
+
+let endpointUrl = undefined;
+
+if (isSamLocal) {
+    endpointUrl = "http://host.docker.internal:4566";
+} else if (isLocalstackEnv) {
+    endpointUrl = `http://${process.env.LOCALSTACK_HOSTNAME}:4566`;
+}
+
+const ddbClient = new DynamoDBClient({
+    region: process.env.AWS_REGION || "us-east-1",
+    endpoint: endpointUrl,
+    credentials: (isSamLocal || isLocalstackEnv) ? { accessKeyId: "test", secretAccessKey: "test" } : undefined
+});
 const docClient = DynamoDBDocumentClient.from(ddbClient);
+const sqsClient = new SQSClient({});
 
 const TABLE_NAME = process.env.TABLE_NAME;
 const QUEUE_URL = process.env.QUEUE_URL;

@@ -1,0 +1,20 @@
+{
+  "Records": [
+    {
+      "messageId": "19dd0b57-b21e-4ac1-bd88-01bbb068cb78",
+      "receiptHandle": "MessageReceiptHandle",
+      "body": "{\"jobId\": \"mock-uuid-1234\", \"task\": \"Generate Report\"}",
+      "attributes": {
+        "ApproximateReceiveCount": "1",
+        "SentTimestamp": "1520635200001",
+        "SenderId": "123456789012",
+        "ApproximateFirstReceiveTimestamp": "1520635200002"
+      },
+      "messageAttributes": {},
+      "md5OfBody": "7b270e59b47ff354d8d3b194d6824253",
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:us-east-1:123456789012:main-queue",
+      "awsRegion": "us-east-1"
+    }
+  ]
+}
