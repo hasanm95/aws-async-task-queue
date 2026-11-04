@@ -20,7 +20,11 @@ const ddbClient = new DynamoDBClient({
     credentials: (isSamLocal || isLocalstackEnv) ? { accessKeyId: "test", secretAccessKey: "test" } : undefined
 });
 const docClient = DynamoDBDocumentClient.from(ddbClient);
-const sqsClient = new SQSClient({});
+const sqsClient = new SQSClient({
+    region: process.env.AWS_REGION || "us-east-1",
+    endpoint: endpointUrl,
+    credentials: (isSamLocal || isLocalstackEnv) ? { accessKeyId: "test", secretAccessKey: "test" } : undefined
+});
 
 const TABLE_NAME = process.env.TABLE_NAME;
 const QUEUE_URL = process.env.QUEUE_URL;

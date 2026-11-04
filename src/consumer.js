@@ -46,6 +46,11 @@ exports.handler = async (event) => {
             if (Math.random() < 0.3) {
                 throw new Error("Simulated transient error during report generation!")
             }
+            
+            // For fail testing
+            // if (true) { 
+            //     throw new Error("Forced failure for DLQ test");
+            // }
 
             // update status to done
             await updateJobStatus(jobId, "done")

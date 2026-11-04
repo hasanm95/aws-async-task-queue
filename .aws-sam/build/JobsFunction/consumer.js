@@ -43,8 +43,11 @@ exports.handler = async (event) => {
             await sleep(3000)
 
             // Simulate Random Flakiness (30% failure rate for DLQ testing)
-            if (Math.random() < 0.3) {
-                throw new Error("Simulated transient error during report generation!")
+            // if (Math.random() < 0.3) {
+            //     throw new Error("Simulated transient error during report generation!")
+            // }
+            if (true) { 
+                throw new Error("Forced failure for DLQ test");
             }
 
             // update status to done
